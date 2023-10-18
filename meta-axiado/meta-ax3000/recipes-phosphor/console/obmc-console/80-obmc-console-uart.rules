@@ -1,0 +1,2 @@
+SUBSYSTEM=="tty", ATTRS{iomem_base}=="0x805A0000", ENV{SYSTEMD_WANTS}="obmc-console@ttyPS1" SYMLINK+="ttyPS1", TAG+="systemd"
+SUBSYSTEM=="tty", ATTRS{iomem_base}=="0x80620000", ENV{SYSTEMD_WANTS}="obmc-console@ttyPS2" SYMLINK+="ttyPS2", TAG+="systemd"

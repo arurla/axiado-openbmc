@@ -1,0 +1,16 @@
+diff --git a/yaml/com/axiado/ax200/Demo.interface.yaml b/yaml/com/axiado/ax200/Demo.interface.yaml
+index e4da33b..63c1dcb 100644
+--- a/yaml/com/axiado/ax200/Demo.interface.yaml
++++ b/yaml/com/axiado/ax200/Demo.interface.yaml
+@@ -18,3 +18,11 @@ properties:
+     description: >
+         Demo data to be forwarded to WebUI. It will keep updated by data
+         agent and on every change it will be transferred to webUI
++  - name: GenHSM
++    type: string
++    default: "off"
++    flags:
++      - emits_change
++    description: >
++        GenHSM property gets updated for button press initiated from
++        webui in order to generate HSM Keys.

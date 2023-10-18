@@ -1,0 +1,9 @@
+[Unit]
+Description=Flowmeter Service
+
+[Service]
+ExecStart=/usr/bin/ransomware-predictor
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

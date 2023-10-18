@@ -1,0 +1,10 @@
+[Unit]
+Description=Flowmeter Service
+After=eip_fwl.service
+
+[Service]
+ExecStart=/usr/bin/flowmeter
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

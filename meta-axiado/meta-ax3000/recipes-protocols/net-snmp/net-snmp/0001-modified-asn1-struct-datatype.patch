@@ -1,0 +1,15 @@
+diff --git a/include/net-snmp/library/asn1.h b/include/net-snmp/library/asn1.h
+index 8de9162..388d8f8 100644
+--- a/include/net-snmp/library/asn1.h
++++ b/include/net-snmp/library/asn1.h
+@@ -80,8 +80,8 @@ SOFTWARE.
+ #define IS_EXTENSION_ID(byte)	(((byte) & ASN_EXTENSION_ID) == ASN_EXTENSION_ID)
+ 
+     struct counter64 {
+-        u_long          high;
+-        u_long          low;
++       unsigned int          high;
++       unsigned int          low;
+     };
+ 
+ #ifdef NETSNMP_WITH_OPAQUE_SPECIAL_TYPES

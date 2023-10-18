@@ -1,0 +1,43 @@
+From 89afdbfcc8834e0e25a1af090cfd343244f22210 Mon Sep 17 00:00:00 2001
+From: Vijay Khemka <axiado1321@axiado.com>
+Date: Tue, 21 Mar 2023 16:38:48 -0700
+Subject: [PATCH 2/2] Add Axiado yaml for demo agent
+
+Added Demo.interface.yaml which adds all properties and
+methods required for demo dbus interface.
+
+Signed-off-by: Vijay Khemka <axiado1321@axiado.com>
+---
+ yaml/com/axiado/ax200/Demo.interface.yaml | 20 ++++++++++++++++++++
+ 1 file changed, 20 insertions(+)
+ create mode 100644 yaml/com/axiado/ax200/Demo.interface.yaml
+
+diff --git a/yaml/com/axiado/ax200/Demo.interface.yaml b/yaml/com/axiado/ax200/Demo.interface.yaml
+new file mode 100644
+index 0000000..e4da33b
+--- /dev/null
++++ b/yaml/com/axiado/ax200/Demo.interface.yaml
+@@ -0,0 +1,20 @@
++description: >
++    Implement interface to provide access of demo data from multiple CPUs
++methods:
++    - name: SendDemoData
++      description: >
++          Send ML demo data to WebUI. 
++      parameters:
++          - name: data
++            type: array[byte]
++            description: >
++                Demo data to be forwarded to WebUI
++
++properties:
++  - name: DemoData
++    type: array[byte]
++    flags:
++      - emits_change
++    description: >
++        Demo data to be forwarded to WebUI. It will keep updated by data
++        agent and on every change it will be transferred to webUI
+-- 
+2.25.1
+

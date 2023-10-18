@@ -1,0 +1,21 @@
+# Must be in the root directory of Kernel repository
+# Every rule line is a file pattern that is followed by one or more Code Owners.
+
+@@@DevOps @pshastry @mkhan
+@@@SeniorReviewers @skode @vkhemka @amankumar1503 @tirumala.marri @kkesavan @rmurtinty @svanvari
+@@@AdditionalReviewers @pshastry @rnaik @hshah @nmalgi
+@@@BMCReviewers @vkhemka @akumar1509 @pbadre @axiado-1515 @axiado-1529 @axiado1549 @syu
+
+# Add all CI files / folders for devops in this format
+# file / folder @@DevOps
+Jenkinsfile              @@DevOps
+ci/*			         @@DevOps
+
+* @@SeniorReviewers @@AdditionalReviewers @@BMCReviewers
+
+# At least a senior and two code owners in total must approve.
+Check(@@SeniorReviewers >= 2)
+
+# It is important to protect CODEOWNERS file as well because otherwise it can get deleted
+# or moved within a pull request; so we want to assign a code owner to it which can prevent this
+CODEOWNERS               @pshastry

@@ -1,0 +1,53 @@
+From c32a028dba6b9f31c84d5013373338b12bca4ff3 Mon Sep 17 00:00:00 2001
+From: Adarsh Kumar <Axiado-1509@axiado.com>
+Date: Sun, 13 Aug 2023 03:32:00 -0700
+Subject: [PATCH] update script
+
+
+diff --git a/obmc-flash-bmc b/obmc-flash-bmc
+index 54dfbc9..6c500ff 100644
+--- a/obmc-flash-bmc
++++ b/obmc-flash-bmc
+@@ -554,27 +554,12 @@ mmc_mount() {
+ }
+ 
+ mmc_update() {
+-  # Update u-boot if needed
+-  bootPartition="mmcblk0boot0"
+-  devUBoot="/dev/${bootPartition}"
+-  imgUBoot="${imgpath}/${version}/image-u-boot"
+-  if [ "$(cmp_uboot "${devUBoot}" "${imgUBoot}")" != "0" ]; then
+-    echo 0 > "/sys/block/${bootPartition}/force_ro"
+-    dd if="${imgUBoot}" of="${devUBoot}"
+-    echo 1 > "/sys/block/${bootPartition}/force_ro"
+-  fi
+-
+   # Update the secondary (non-running) boot and rofs partitions.
+   label="$(mmc_get_secondary_label)"
+ 
+-  # Update the boot and rootfs partitions, restore their labels after the update
++  # Update the rootfs partitions, restore their labels after the update
+   # by getting the partition number mmcblk0pX from their label.
+-  zstd -d -c "${imgpath}"/"${version}"/image-kernel | dd of="/dev/disk/by-partlabel/boot-${label}"
+-  number="$(readlink -f /dev/disk/by-partlabel/boot-"${label}")"
+-  number="${number##*mmcblk0p}"
+-  sgdisk --change-name="${number}":boot-"${label}" /dev/mmcblk0 1>/dev/null
+-
+-  zstd -d -c "${imgpath}"/"${version}"/image-rofs | dd of="/dev/disk/by-partlabel/rofs-${label}"
++  xzdec "${imgpath}"/"${version}"/image-rofs | dd of="/dev/disk/by-partlabel/rofs-${label}" bs=4M
+   number="$(readlink -f /dev/disk/by-partlabel/rofs-"${label}")"
+   number="${number##*mmcblk0p}"
+   sgdisk --change-name="${number}":rofs-"${label}" /dev/mmcblk0 1>/dev/null
+@@ -607,7 +592,8 @@ mmc_remove() {
+   if [[ "${flashid}" == "${primaryid}" ]]; then
+     return 1
+   fi
+-  dd if=/dev/zero of=/dev/disk/by-partlabel/boot-"${flashid}" count=2048
++  #commenting as we are not using boot partition for ax200.
++  #dd if=/dev/zero of=/dev/disk/by-partlabel/boot-"${flashid}" count=2048
+   dd if=/dev/zero of=/dev/disk/by-partlabel/rofs-"${flashid}" count=2048
+ 
+   hostfw_alt="hostfw/alternate"
+-- 
+2.25.1
+

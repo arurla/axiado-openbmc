@@ -1,0 +1,299 @@
+From 77184b06798a2e9c0d0e6ccf22f50850e59d1851 Mon Sep 17 00:00:00 2001
+From: Revathi Kumar <axiado-1529@axiado.com>
+Date: Sun, 25 Jun 2023 06:37:02 -0700
+Subject: [PATCH] BMCWeb backend API for HSM Key
+
+1. Added new URI for implementing GET method
+2. Added new URI for implementing POST method
+3. POST method sets GenHSM property over a button
+   press
+4. GET method gets the data generated from DemoData
+   property
+
+Signed-off-by: Revathi Kumar <axiado-1529@axiado.com>
+---
+ redfish-core/include/redfish.hpp  |   4 +
+ redfish-core/lib/HSMKey.hpp       | 236 ++++++++++++++++++++++++++++++
+ redfish-core/lib/service_root.hpp |   1 +
+ 3 files changed, 241 insertions(+)
+ create mode 100644 redfish-core/lib/HSMKey.hpp
+
+diff --git a/redfish-core/include/redfish.hpp b/redfish-core/include/redfish.hpp
+index a9704d6a..0bf565c8 100644
+--- a/redfish-core/include/redfish.hpp
++++ b/redfish-core/include/redfish.hpp
+@@ -45,6 +45,7 @@
+ #include "../lib/trigger.hpp"
+ #include "../lib/update_service.hpp"
+ #include "../lib/virtual_media.hpp"
++#include "../lib/HSMKey.hpp"
+ 
+ namespace redfish
+ {
+@@ -212,6 +213,9 @@ class RedfishService
+         requestRoutesMetricReport(app);
+         requestRoutesTriggerCollection(app);
+         requestRoutesTrigger(app);
++        requestHSMKeyGet(app);
++        requestGenHSMButtonPress(app);
++        requestHSMKeyInfoGet(app);
+     }
+ };
+ 
+diff --git a/redfish-core/lib/HSMKey.hpp b/redfish-core/lib/HSMKey.hpp
+new file mode 100644
+index 00000000..a11e45f2
+--- /dev/null
++++ b/redfish-core/lib/HSMKey.hpp
+@@ -0,0 +1,236 @@
++#pragma once
++
++#include "dbus_singleton.hpp"
++#include "health.hpp"
++#include "led.hpp"
++#include "pcie.hpp"
++#include "redfish_util.hpp"
++#include "utils/time_utils.hpp"
++
++#include <app.hpp>
++#include <boost/container/flat_map.hpp>
++#include <dbus_utility.hpp>
++#include <query.hpp>
++#include <registries/privilege_registry.hpp>
++#include <sdbusplus/asio/property.hpp>
++#include <sdbusplus/bus.hpp>
++#include <sdbusplus/unpack_properties.hpp>
++#include <utils/fw_utils.hpp>
++#include <utils/json_utils.hpp>
++
++#include <algorithm>
++#include <cstdint>
++#include <iostream>
++#include <string>
++#include <variant>
++#include <vector>
++namespace redfish
++{
++
++/**
++ * @brief Updates the DemoData property with lastest HSM Key Generated.
++ *        The property gets updated in /com/axiado/ax200/Demo/Gen_HSMKey.
++ *
++ * @param[in] aResp     Shared pointer for generating response message.
++ *
++ * @return None.
++ */
++inline void getHSMKey_new(const std::shared_ptr<bmcweb::AsyncResp>& aResp)
++{
++    BMCWEB_LOG_DEBUG << "Getting Latest HSM Key generated";
++
++    sdbusplus::asio::getProperty<std::vector<uint8_t>>(
++        *crow::connections::systemBus, "com.axiado.ax200.Demo",
++        "/com/axiado/ax200/Demo/Gen_HSMKey", "com.axiado.ax200.Demo",
++        "DemoData",
++        [aResp](const boost::system::error_code ec,
++                std::vector<uint8_t> DemoData) {
++            if (ec)
++            {
++                BMCWEB_LOG_DEBUG << "D-BUS response error " << ec;
++                return;
++            }
++
++            bool value = std::all_of(DemoData.begin(), DemoData.end(),
++                                     [](uint8_t val) { return val == 0; });
++            if (!value)
++            {
++                auto place = 0;
++                uint32_t newvalue = 0;
++                for (auto& element : DemoData)
++                {
++                    newvalue = newvalue | element << place;
++                    place += 8;
++                }
++                aResp->res.jsonValue["HSMKey"] = newvalue;
++            }
++            else
++            {
++                aResp->res.jsonValue["HSMKey"] = 0;
++            }
++            // Set DemoData to 0 by default
++            using namespace sdbusplus;
++            auto b = bus::new_default_system();
++            std::variant<std::vector<uint8_t>> variant;
++            variant = std::vector<uint8_t>{0};
++            auto setMethod = b.new_method_call(
++                "com.axiado.ax200.Demo", "/com/axiado/ax200/Demo/Gen_HSMKey",
++                "org.freedesktop.DBus.Properties", "Set");
++            setMethod.append("com.axiado.ax200.Demo", "DemoData", variant);
++            b.call(setMethod);
++            std::cout << "Property set to default demodata value: 0"
++                      << std::endl;
++        });
++}
++
++inline void
++    handleNewServiceGet(crow::App& app, const crow::Request& req,
++                        const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
++{
++    if (!redfish::setUpRedfishRoute(app, req, asyncResp->res))
++    {
++        return;
++    }
++    asyncResp->res.jsonValue["@odata.id"] = "/redfish/v1/HSMKey";
++    asyncResp->res.jsonValue["Name"] = "TEST Configuration";
++    asyncResp->res.jsonValue["Description"] = "TEST Configuration Service";
++    asyncResp->res.jsonValue["Id"] = "TEST1";
++    getHSMKey_new(asyncResp);
++    asyncResp->res.jsonValue["Actions"]["HSMKey"]["target"] =
++        "/redfish/v1/HSMKey/Actions/HSMKey";
++    asyncResp->res.jsonValue["Actions"]["HSMKey"]["@Redfish.ActionInfo"] =
++        "/redfish/v1/HSMKey/HSMKey_Info";
++}
++
++/**
++ * GET API called after POST API success
++ * GET API - /redfish/v1/HSMKey
++ * Gets DemoData property value and stores in HSMKey
++ */
++
++inline void requestHSMKeyGet(App& app)
++{
++    std::cout << "Setting up the route" << std::endl;
++    BMCWEB_ROUTE(app, "/redfish/v1/HSMKey")
++        .privileges(redfish::privileges::getServiceRoot)
++        .methods(boost::beast::http::verb::get)(
++            std::bind_front(handleNewServiceGet, std::ref(app)));
++}
++
++/**
++ * This GET publishes the HSM Info for the parameters required, datatype and
++ * allowable payload values.
++ */
++inline void requestHSMKeyInfoGet(App& app)
++{
++    BMCWEB_ROUTE(app, "/redfish/v1/HSMKey/HSMKey_Info/")
++        .privileges(redfish::privileges::getActionInfo)
++        .methods(boost::beast::http::verb::get)([&app](const crow::Request& req,
++                                                       const std::shared_ptr<
++                                                           bmcweb::AsyncResp>&
++                                                           asyncResp) {
++            if (!redfish::setUpRedfishRoute(app, req, asyncResp->res))
++            {
++                return;
++            }
++
++            asyncResp->res.addHeader(
++                boost::beast::http::field::link,
++		"</redfish/v1/JsonSchemas/ActionInfo/ActionInfo.json>; \
++		rel=describedby");
++
++            asyncResp->res.jsonValue["@odata.id"] =
++                "/redfish/v1/HSMKey/HSMKey_Info";
++            asyncResp->res.jsonValue["@odata.type"] =
++                "#ActionInfo.v1_1_2.ActionInfo";
++            asyncResp->res.jsonValue["Name"] = "HSM Key Info";
++            asyncResp->res.jsonValue["Id"] = "HSMInfo";
++
++            nlohmann::json::array_t parameters;
++            nlohmann::json::object_t parameter;
++
++            parameter["Name"] = "ButtonPress";
++            parameter["Required"] = true;
++            parameter["DataType"] = "String";
++            nlohmann::json::array_t allowableValues;
++            allowableValues.emplace_back("Generate-HSM");
++            parameter["AllowableValues"] = std::move(allowableValues);
++            parameters.emplace_back(std::move(parameter));
++
++            asyncResp->res.jsonValue["Parameters"] = std::move(parameters);
++        });
++}
++
++/**
++ * Function handles POST method request.
++ * Analyzes POST body message before sends ButtonPress request data to D-Bus.
++ * POST API called when Generate-HSM button pressed from WebUI
++ * POST API - /redfish/v1/HSMKey/Actions/HSMKey
++ */
++
++inline void requestGenHSMButtonPress(App& app)
++{
++    std::cout << "Inside the POST Call" << std::endl;
++    BMCWEB_ROUTE(app, "/redfish/v1/HSMKey/Actions/HSMKey/")
++        .privileges(redfish::privileges::postComputerSystem)
++        .methods(boost::beast::http::verb::post)(
++            [&app](const crow::Request& req,
++                   const std::shared_ptr<bmcweb::AsyncResp>& asyncResp) {
++                if (!redfish::setUpRedfishRoute(app, req, asyncResp->res))
++                {
++                    return;
++                }
++                std::string buttonPress;
++                if (!json_util::readJsonAction(req, asyncResp->res,
++                                               "ButtonPress", buttonPress))
++                {
++                    return;
++                }
++                std::cout << "The String from UI is: " << buttonPress
++                          << std::endl;
++
++                std::string command;
++                if (buttonPress == "Generate-HSM")
++                {
++                    command = "Start";
++                }
++                else
++                {
++                    messages::actionParameterUnknown(
++                        asyncResp->res, "ButtonPress", buttonPress);
++                    return;
++                }
++
++                crow::connections::systemBus->async_method_call(
++                    [asyncResp,
++                     buttonPress](const boost::system::error_code ec) {
++                        if (ec)
++                        {
++                            std::cout << "The value for ec : " << ec
++                                      << std::endl;
++                            BMCWEB_LOG_ERROR << "D-Bus responses error: " << ec;
++                            if (ec.value() ==
++                                boost::asio::error::invalid_argument)
++                            {
++                                messages::actionParameterNotSupported(
++                                    asyncResp->res, buttonPress, "ButtonPress");
++                            }
++                            else
++                            {
++                                std::cout << "Inside internal server error"
++                                          << std::endl;
++                                messages::internalError(asyncResp->res);
++                            }
++                            return;
++                        }
++                        messages::success(asyncResp->res);
++                    },
++                    "com.axiado.ax200.Demo",
++                    "/com/axiado/ax200/Demo/Gen_HSMKey",
++                    "org.freedesktop.DBus.Properties", "Set",
++                    "com.axiado.ax200.Demo", "GenHSM",
++                    dbus::utility::DbusVariantType{command});
++            });
++}
++
++} // namespace redfish
+diff --git a/redfish-core/lib/service_root.hpp b/redfish-core/lib/service_root.hpp
+index d7214eeb..dc69ca3d 100644
+--- a/redfish-core/lib/service_root.hpp
++++ b/redfish-core/lib/service_root.hpp
+@@ -68,6 +68,7 @@ inline void
+     asyncResp->res.jsonValue["TelemetryService"] = {
+         {"@odata.id", "/redfish/v1/TelemetryService"}};
+     asyncResp->res.jsonValue["Cables"] = {{"@odata.id", "/redfish/v1/Cables"}};
++    asyncResp->res.jsonValue["HSMKeygen"] = {{"@odata.id", "/redfish/v1/HSMKey"}};
+ 
+     nlohmann::json& protocolFeatures =
+         asyncResp->res.jsonValue["ProtocolFeaturesSupported"];
+-- 
+2.25.1
+

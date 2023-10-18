@@ -1,0 +1,99 @@
+From d2b472391fb65d4a4291cc059eab8861dcaa8762 Mon Sep 17 00:00:00 2001
+From: Adarsh Kumar <Axiado-1509@axiado.com>
+Date: Mon, 7 Aug 2023 08:45:51 -0700
+Subject: [PATCH] start sysmgr image update app
+
+
+diff --git a/activation.cpp b/activation.cpp
+index e057814..5030639 100644
+--- a/activation.cpp
++++ b/activation.cpp
+@@ -219,7 +219,8 @@ void Activation::onFlashWriteSuccess()
+     if (Activation::checkApplyTimeImmediate() == true)
+     {
+         info("Image Active and ApplyTime is immediate; rebooting BMC.");
+-        Activation::rebootBmc();
++        //commenting as reboot is taken care by sysmgr app.
++	//Activation::rebootBmc();
+     }
+     else
+     {
+diff --git a/images.hpp b/images.hpp
+index 7801ea3..aaf2d61 100644
+--- a/images.hpp
++++ b/images.hpp
+@@ -11,8 +11,8 @@ namespace image
+ {
+ 
+ // BMC flash image file name list.
+-const std::vector<std::string> bmcImages = {"image-kernel", "image-rofs",
+-                                            "image-rwfs", "image-u-boot"};
++const std::vector<std::string> bmcImages = {"image-rofs",
++                                            "image-rwfs"};
+ // BMC flash image file name list for full flash image (image-bmc)
+ const std::string bmcFullImages = {"image-bmc"};
+ 
+diff --git a/item_updater.cpp b/item_updater.cpp
+index c8fda76..20810ab 100644
+--- a/item_updater.cpp
++++ b/item_updater.cpp
+@@ -550,7 +550,7 @@ void ItemUpdater::freePriority(uint8_t value, const std::string& versionId)
+     {
+         lowestVersion = versionId;
+     }
+-    updateUbootEnvVars(lowestVersion);
++    //updateUbootEnvVars(lowestVersion);
+ }
+ 
+ void ItemUpdater::reset()
+@@ -729,7 +729,7 @@ void ItemUpdater::resetUbootEnvVars()
+     }
+ 
+     // Update the U-boot environment variable to point to the lowest priority
+-    updateUbootEnvVars(lowestPriorityVersion);
++    //updateUbootEnvVars(lowestPriorityVersion);
+ }
+ 
+ void ItemUpdater::freeSpace([[maybe_unused]] const Activation& caller)
+diff --git a/mmc/flash.cpp b/mmc/flash.cpp
+index e1c5e9c..08acbd5 100644
+--- a/mmc/flash.cpp
++++ b/mmc/flash.cpp
+@@ -57,23 +57,7 @@ void Activation::onStateChanges(sdbusplus::message::message& msg)
+         }
+         else if (roVolumeCreated)
+         {
+-            if (!ubootEnvVarsUpdated)
+-            {
+-                activationProgress->progress(90);
+-
+-                // Set the priority which triggers the service that updates the
+-                // environment variables.
+-                if (!Activation::redundancyPriority)
+-                {
+-                    Activation::redundancyPriority =
+-                        std::make_unique<RedundancyPriority>(bus, path, *this,
+-                                                             0);
+-                }
+-            }
+-            else // Environment variables were updated
+-            {
+-                Activation::onFlashWriteSuccess();
+-            }
++		Activation::onFlashWriteSuccess();
+         }
+     }
+ 
+diff --git a/mmc/obmc-flash-mmc@.service.in b/mmc/obmc-flash-mmc@.service.in
+index 6cdbdb1..641c3d5 100644
+--- a/mmc/obmc-flash-mmc@.service.in
++++ b/mmc/obmc-flash-mmc@.service.in
+@@ -4,4 +4,4 @@ Description=Write image %I to BMC storage
+ [Service]
+ Type=oneshot
+ RemainAfterExit=no
+-ExecStart=/usr/bin/obmc-flash-bmc mmc %i @IMG_UPLOAD_DIR@
++ExecStart=/usr/bin/ax200-fw-update /tmp/images/%i/
+-- 
+2.25.1
+
