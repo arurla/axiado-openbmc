@@ -1,0 +1,12 @@
+# Keep up to four 64k files for system.log (256k total)
+/var/log/system.log {
+    daily
+    rotate 4
+    size 64k
+    notifempty
+    create
+    compress
+    postrotate
+        systemctl restart rsyslog 2> /dev/null || true
+    endscript
+}

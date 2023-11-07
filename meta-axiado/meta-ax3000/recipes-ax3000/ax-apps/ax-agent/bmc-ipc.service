@@ -1,0 +1,10 @@
+[Unit]
+Description=Send BMC IPC data to DBus interface
+After=dbus.service demo.service
+
+[Service]
+ExecStart=/usr/bin/bmc-ipc-agent
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,65 @@
+- name: Temperature sensor path group
+  class: group
+  group: path
+  members:
+    - meta: SENSOR
+      path: /xyz/openbmc_project/sensors/temperature/HV_AMBIENT_TEMP
+    - meta: SENSOR
+      path: /xyz/openbmc_project/sensors/temperature/HV_CPU_TEMP
+    - meta: SENSOR
+      path: /xyz/openbmc_project/sensors/temperature/HV_BOARD_TEMP
+
+- name: sensor value
+  description: >
+    'Monitor sensor value'
+  class: group
+  group: property
+  type: boolean
+  members:
+    - interface: xyz.openbmc_project.Sensor.Threshold.Critical
+      meta: PROPERTY
+      property: CriticalAlarmHigh
+    - interface: xyz.openbmc_project.Sensor.Threshold.Critical
+      meta: PROPERTY
+      property: CriticalAlarmLow
+
+- name: watch sensor state
+  description: >
+    'Trigger logic on sensor state.'
+  class: watch
+  watch: property
+  paths: Temperature sensor path group
+  properties: sensor value
+  callback: sensor count condition
+
+- name: sensor count condition
+  description: >
+    'check critical condition of the sensors.'
+  class: condition
+  condition: count
+  paths: Temperature sensor path group
+  properties: sensor value
+  callback: log
+  countop: '=='
+  countbound: 1
+  op: '=='
+  bound: true 
+
+- name: log
+  description: >
+    'log an event.'
+  class: callback
+  callback: group
+  members:
+    - sensor critical error
+
+- name: sensor critical error
+  description: >
+    'Create a CriticalHigh Error log.'
+  class: callback
+  callback: elog_with_metadata
+  paths: Temperature sensor path group
+  properties: sensor value
+  error: xyz::openbmc_project::Sensor::Threshold::Error::CriticalHigh
+  metadata: xyz::openbmc_project::Sensor::Threshold::CriticalHigh::SENSOR_DATA
+

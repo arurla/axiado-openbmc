@@ -1,0 +1,6 @@
+library identifier: "openbmc@${PIPELINE_DEFAULT_RELEASE_BRANCH}", retriever: modernSCM(
+  [$class: 'GitSCMSource',
+   remote: 'ssh://git@sourcevault.axiadord:7999/bit/pipelines.git',
+   credentialsId: 'Jenkins-BB-Webhook'])
+
+openbmc([:])

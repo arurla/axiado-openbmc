@@ -1,0 +1,9 @@
+[Unit]
+Description=Sysproxy Service
+
+[Service]
+ExecStart=/usr/bin/sysmgr_proxy
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

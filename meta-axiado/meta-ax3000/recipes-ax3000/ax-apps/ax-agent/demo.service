@@ -1,0 +1,10 @@
+[Unit]
+Description=demo bmc agent
+After=dbus.service
+
+[Service]
+ExecStart=/usr/bin/axdemo
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

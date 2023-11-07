@@ -1,0 +1,143 @@
+commit 22a9f6e38cbc92edece7d66aad6a875601fd3f72
+Author: Parinita Badre <parinita.badre@axiado.com>
+Date:   Wed Jul 19 19:38:07 2023 -0700
+
+    KWS-3699: Create TCU versions
+    
+    - Created versions for TCU images: System manager, apps
+      firewall, ml0, ml1, ml2, ml3 and security fw
+    
+    Signed-off-by: Parinita Badre <parinita.badre@axiado.com>
+
+diff --git a/image_manager.cpp b/image_manager.cpp
+index b02abd3..435236c 100644
+--- a/image_manager.cpp
++++ b/image_manager.cpp
+@@ -301,6 +301,34 @@ int Manager::unTar(const std::string& tarFilePath,
+     return 0;
+ }
+ 
++int Manager::processTcuImage(std::string objectPath, std::string objectVersion)
++{
++    std::string objPath = objectPath;
++    if (objPath.empty())
++        return -1;
++
++    auto pos = objPath.rfind("/");
++    if (pos == std::string::npos)
++    {
++        error("No version id found in object path {PATH}", "PATH", objPath);
++        return -1;
++    }
++    auto id = objPath.substr(pos + 1);
++
++    auto purpose = Version::VersionPurpose::System;
++    auto version = objectVersion;
++
++    // Create Version object
++    auto versionPtr = std::make_unique<Version>(
++        bus, objPath, version, purpose, "", "", std::vector<std::string>(),
++        std::bind(&Manager::erase, this, std::placeholders::_1), id);
++    versionPtr->deleteObject =
++        std::make_unique<phosphor::software::manager::Delete>(bus, objPath,
++                                                              *versionPtr);
++    versions.insert(std::make_pair(id, std::move(versionPtr)));
++    return 0;
++}
++
+ } // namespace manager
+ } // namespace software
+ } // namespace phosphor
+diff --git a/image_manager.hpp b/image_manager.hpp
+index 25f0ced..f7af41b 100644
+--- a/image_manager.hpp
++++ b/image_manager.hpp
+@@ -37,6 +37,16 @@ class Manager
+      */
+     int processImage(const std::string& tarballFilePath);
+ 
++    /**
++     * @brief Create and populate the version for TCU images.
++     *
++     * @param[in]  object_path - TCU images path
++     * @param[in]  object_version - TCU images' version
++     * @param[out] - 0 if successful.
++     * @param[out] - -1 if objectPath is empty or no version ID
++     */
++    int processTcuImage(std::string objectPath, std::string objectVersion);
++
+     /**
+      * @brief Erase specified entry d-bus object
+      *        and deletes the image file.
+diff --git a/image_manager_main.cpp b/image_manager_main.cpp
+index f4dc03f..97424b8 100644
+--- a/image_manager_main.cpp
++++ b/image_manager_main.cpp
+@@ -3,11 +3,14 @@
+ #include "image_manager.hpp"
+ #include "watch.hpp"
+ 
++#include <bits/stdc++.h>
++
+ #include <phosphor-logging/lg2.hpp>
+ #include <sdbusplus/bus.hpp>
+ 
+ #include <cstdlib>
+ #include <exception>
++#include <map>
+ 
+ int main()
+ {
+@@ -22,7 +25,29 @@ int main()
+ 
+     try
+     {
++        using namespace std;
+         phosphor::software::manager::Manager imageManager(bus);
++        std::map<std::string, std::string> tcuVersions = {
++            {SYSMGR_SOFTWARE_OBJPATH, DEFAULT_VERSION},
++            {MLISLAND0_SOFTWARE_OBJPATH, DEFAULT_VERSION},
++            {MLISLAND1_SOFTWARE_OBJPATH, DEFAULT_VERSION},
++            {MLISLAND2_SOFTWARE_OBJPATH, DEFAULT_VERSION},
++            {MLISLAND3_SOFTWARE_OBJPATH, DEFAULT_VERSION},
++            {FWL_SOFTWARE_OBJPATH, DEFAULT_VERSION},
++            {LINUX_KERNEL_SOFTWARE_OBJPATH, DEFAULT_VERSION},
++            {SECURITY_FW_SOFTWARE_OBJPATH, DEFAULT_VERSION}};
++        map<std::string, std::string>::iterator it;
++        for (it = tcuVersions.begin(); it != tcuVersions.end(); it++)
++        {
++            int res = imageManager.processTcuImage(it->first, it->second);
++            if (res)
++            {
++                cout << "Error in processing TCU image version for path: "
++                     << it->first << endl;
++                break;
++            }
++        }
++
+         phosphor::software::manager::Watch watch(
+             loop, std::bind(std::mem_fn(&Manager::processImage), &imageManager,
+                             std::placeholders::_1));
+diff --git a/meson.build b/meson.build
+index 0dca8c0..fbc5962 100644
+--- a/meson.build
++++ b/meson.build
+@@ -52,6 +52,18 @@ conf.set_quoted('FUNCTIONAL_REV_ASSOCIATION', 'software_version')
+ conf.set_quoted('UPDATEABLE_FWD_ASSOCIATION', 'updateable')
+ conf.set_quoted('UPDATEABLE_REV_ASSOCIATION', 'software_version')
+ 
++#Axiado specific system component paths
++conf.set_quoted('TCU_SOFTWARE_OBJPATH','/xyz/openbmc_project/software/tcu')
++conf.set_quoted('SYSMGR_SOFTWARE_OBJPATH','/xyz/openbmc_project/software/tcu/sysmgr')
++conf.set_quoted('LINUX_KERNEL_SOFTWARE_OBJPATH','/xyz/openbmc_project/software/tcu/linuxKernel')
++conf.set_quoted('MLISLAND0_SOFTWARE_OBJPATH','/xyz/openbmc_project/software/tcu/mlIsland0')
++conf.set_quoted('MLISLAND1_SOFTWARE_OBJPATH','/xyz/openbmc_project/software/tcu/mlIsland1')
++conf.set_quoted('MLISLAND2_SOFTWARE_OBJPATH', '/xyz/openbmc_project/software/tcu/mlIsland2')
++conf.set_quoted('MLISLAND3_SOFTWARE_OBJPATH', '/xyz/openbmc_project/software/tcu/mlIsland3')
++conf.set_quoted('FWL_SOFTWARE_OBJPATH', '/xyz/openbmc_project/software/tcu/fwl')
++conf.set_quoted('SECURITY_FW_SOFTWARE_OBJPATH', '/xyz/openbmc_project/software/tcu/securityFW')
++conf.set_quoted('DEFAULT_VERSION', '-')
++
+ # Filesystem files and directories
+ # The prefix path for the versioned read-only bmc partitions
+ conf.set_quoted('BMC_ROFS_PREFIX', get_option('media-dir') + '/rofs-')

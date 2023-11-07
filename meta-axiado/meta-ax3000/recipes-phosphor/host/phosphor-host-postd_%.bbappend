@@ -1,0 +1,1 @@
+SNOOP_DEVICE:ax3000 = "ax-espi-snoop"

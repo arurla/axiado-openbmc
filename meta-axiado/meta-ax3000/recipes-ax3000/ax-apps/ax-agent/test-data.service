@@ -1,0 +1,10 @@
+[Unit]
+Description=Random test data for bmc agent
+After=dbus.service demo.service
+
+[Service]
+ExecStart=/usr/bin/ax-demo-test
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
